@@ -59,6 +59,11 @@ The compliance value compounds on top of the fuel savings. Under CORSIA's mandat
 
 For Tata Technologies specifically, Indian carriers enter mandatory CORSIA obligations in 2027 and already face EU ETS and ReFuelEU exposure on European routes, making onboard connectivity-independent fuel optimisation directly relevant to the group's own aviation operations and customer base.
 
+## Demo preview
+- Live dashboard: http://127.0.0.1:5173
+- API docs: http://127.0.0.1:8000/docs
+- Backend health check: http://127.0.0.1:8000/health
+
 ## Run commands (Windows PowerShell)
 
 ### 1) From the project root
