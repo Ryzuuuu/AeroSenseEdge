@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AeroSense Edge Simulation</title>
+    <style>
+      body { margin: 0; font-family: Inter, Arial, sans-serif; background: #07111d; color: #e8eef7; }
+      .app { padding: 20px; }
+      .topbar { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 16px; }
+      .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+      label { display: flex; flex-direction: column; font-size: 0.85rem; color: #9fb2c8; }
+      input { margin-top: 4px; padding: 6px 8px; border-radius: 6px; border: 1px solid #2d415f; background: #0f1e2f; color: white; }
+      button { background: #f5a623; padding: 8px 12px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; }
+      .panel { background: rgba(10,24,40,0.95); border: 1px solid #23324a; border-radius: 12px; padding: 16px; margin-top: 16px; }
+      canvas { width: 100%; max-height: 320px; background: #0b1422; border-radius: 8px; }
+      .stats { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 10px; margin-top: 10px; }
+      .stat { background: #0f1e2f; padding: 10px; border-radius: 8px; }
+      .feed { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 8px; }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="topbar">
+        <div>
+          <h1>AeroSense Edge • Virtual POC</h1>
+          <p>Simulation mode — no live aircraft or avionics bus data</p>
+        </div>
+        <div class="controls">
+          <label>Route distance (nm)<input id="routeDistance" type="number" value="1200" /></label>
+          <label>Altitude (ft)<input id="cruiseAltitude" type="number" value="34000" /></label>
+          <label>Wind seed<input id="windSeed" type="number" value="42" /></label>
+          <label>Weight (t)<input id="weight" type="number" value="68" /></label>
+          <label><input id="degraded" type="checkbox" /> Degraded engine</label>
+          <button onclick="runSimulation()">Run Simulation</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Fuel burn: OpenAP vs predictor</h2>
+        <canvas id="fuelChart" width="900" height="320"></canvas>
+      </div>
+      <div class="panel">
+        <h2>Current recommendations</h2>
+        <ul id="feed" class="feed"></ul>
+      </div>
+      <div class="stats">
+        <div class="stat"><strong>Fuel saved</strong><div id="fuelSaved">—</div></div>
+        <div class="stat"><strong>CO2 avoided</strong><div id="co2Avoided">—</div></div>
+        <div class="stat"><strong>Prediction error</strong><div id="predictionError">—</div></div>
+      </div>
+    </div>
+    <script>
+      const state = {
+        records: []
+      };
+      async function runSimulation() {
+        const payload = {
+          route_distance_nm: Number(document.getElementById('routeDistance').value),
+          cruise_altitude_ft: Number(document.getElementById('cruiseAltitude').value),
+          wind_seed: Number(document.getElementById('windSeed').value),
+          aircraft_weight_t: Number(document.getElementById('weight').value),
+          degraded_engine: document.getElementById('degraded').checked,
+        };
+        const response = await fetch('/simulate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const data = await response.json();
+        state.records = data.records;
+        renderChart();
+        document.getElementById('fuelSaved').textContent = `${data.tod.fuel_delta_kg} kg`;
+        document.getElementById('co2Avoided').textContent = `${(data.tod.fuel_delta_kg * 3.16).toFixed(1)} kg`;
+        document.getElementById('predictionError').textContent = `${data.metrics.mape_pct.toFixed(1)}%`;
+        const feed = document.getElementById('feed');
+        feed.innerHTML = '';
+        const items = [
+          `Descend now for optimal idle descent at ${data.tod.tod_distance_nm} nm`,
+          data.apu.apu_off_recommended ? `APU off now — ${data.apu.fuel_saved_kg} kg saved` : 'APU stay on — ground power unavailable',
+          `Prediction error ${data.metrics.mape_pct.toFixed(1)}% against simulated OpenAP truth`
+        ];
+        items.forEach(item => {
+          const li = document.createElement('li');
+          li.textContent = item;
+          feed.appendChild(li);
+        });
+      }
+      function renderChart() {
+        const canvas = document.getElementById('fuelChart');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#0b1422';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = '#23324a';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 8; i++) {
+          ctx.beginPath();
+          ctx.moveTo(40, 40 + i * 30);
+          ctx.lineTo(canvas.width - 20, 40 + i * 30);
+          ctx.stroke();
+        }
+        const actual = state.records.slice(0, 120).map((row) => row.fuel_flow_kg_hr);
+        const predicted = state.records.slice(0, 120).map((row) => row.predicted_fuel_flow_kg_hr);
+        const maxValue = Math.max(...actual, ...predicted, 1) * 1.1;
+        const width = canvas.width - 60; const height = 240;
+        const xStep = width / Math.max(actual.length - 1, 1);
+        ctx.strokeStyle = '#f5a623';
+        ctx.beginPath();
+        actual.forEach((value, idx) => {
+          const x = 40 + idx * xStep;
+          const y = 280 - (value / maxValue) * height;
+          if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+        ctx.strokeStyle = '#4db6ac';
+        ctx.beginPath();
+        predicted.forEach((value, idx) => {
+          const x = 40 + idx * xStep;
+          const y = 280 - (value / maxValue) * height;
+          if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+      runSimulation();
+    </script>
+  </body>
+</html>
