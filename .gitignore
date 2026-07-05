@@ -1,0 +1,53 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+*.env
+.env
+.env.*
+
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+build/
+dist/
+.site-packages/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local runtime data
+*.log
+*.sqlite3
+*.db
+*.db-journal
+*.bak
+*.tmp
+
+# Secrets and credentials
+secrets.json
+*.pem
+*.key
+*.crt
+*.pfx
+*.token
+
+# Node / frontend caches
+node_modules/
+.npm/
+.pnpm-store/
+coverage/
+
+# Optional: keep local notebooks outputs out
+.ipynb_checkpoints/
