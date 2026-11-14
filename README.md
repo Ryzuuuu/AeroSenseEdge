@@ -83,6 +83,7 @@ curl http://127.0.0.1:8000/health
 | `/health` | GET | Service status, model-loaded flag and held-out model metrics |
 | `/simulate` | POST | Run a full flight simulation with predictions, TOD and APU advisories |
 | `/advisory` | POST | Standalone APU advisory with custom turnaround inputs |
+| `/model-info` | GET | Model metrics and feature importances for the fuel-burn predictor |
 | `/export` · `/export-csv` | GET | Download the compliance log as JSON / CSV |
 | `/docs` | GET | Interactive Swagger UI |
 
